@@ -6,10 +6,249 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  password        String?
+  name            String
+  firstName       String?
+  lastName        String?
+  role            Role           @default(CUSTOMER)
+  isEmailVerified Boolean        @default(false)
+  isTwoFA         Boolean        @default(false)
+  twoFASecret     String?
+  avatarUrl       String?
+  locale          String?
+  timezone        String?
+  lastLoginAt     DateTime?
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updateAt        DateTime       @updatedAt
+  OAuthAccount    OAuthAccount[]
+  RefreshToken    RefreshToken[]
+  Book            Book[]
+  Reviews         Reviews[]
+  Cart            Cart?
+  Order           Order[]
+  Natification    Natification[]
+  Wishlist        Wishlist[]
+  AuditLog        AuditLog[]
+  books           Book[]         @relation("UserBooks")
+
+  @@map("user")
+}
+
+model OAuthAccount {
+  id           String        @id @default(uuid())
+  userId       String
+  provider     OAuthProvider
+  providerId   String // Google ID
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  tokenType    String?
+  scope        String?
+  idToken      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@unique([userId, provider])
+  @@map("oauthaccount")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_token")
+}
+
+enum OAuthProvider {
+  Google
+  FACEBOOK
+  GITHUB
+  APPLE
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  SELLER
+  CUSTOMER
+  MODERATOR
+}
+
+model Book {
+  id          String   @id @default(uuid())
+  title       String
+  author      String
+  isbn        String   @unique
+  price       Float
+  stock       Int      @default(0)
+  fileUrl     String?
+  coverImg    String? // kitob muqovasi
+  posterUrl   String? // kitob posteri
+  description String?
+  categoryId  String?
+  sellerId    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  seller    User        @relation("UserBooks", fields: [sellerId], references: [id])
+  category  Category?   @relation(fields: [categoryId], references: [id])
+  reviews   Reviews[]
+  orders    OrderItem[]
+  wishlist  Wishlist[]
+  cartitems CartItem[]
+  User      User?       @relation(fields: [userId], references: [id])
+  userId    String?
+
+  @@map("book")
+}
+
+model Category {
+  id    String @id @default(uuid())
+  name  String
+  books Book[]
+
+  @@map("category")
+}
+
+model Reviews {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  bookId    String
+
+  user User @relation(fields: [userId], references: [id])
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@map("reviews")
+}
+
+model Cart {
+  id     String     @id @default(uuid())
+  userId String     @unique
+  items  CartItem[]
+  user   User       @relation(fields: [userId], references: [id])
+
+  @@map("cart")
+}
+
+model CartItem {
+  id     String @id @default(uuid())
+  cartId String
+  bookId String
+  qty    Int
+
+  cart Cart @relation(fields: [cartId], references: [id])
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@map("cart_item")
+}
+
+model Order {
+  id          String @id @default(uuid())
+  userId      String
+  totalAmount Float
+
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  couponId String?
+
+  items OrderItem[]
+
+  user   User    @relation(fields: [userId], references: [id])
+  coupon Coupon? @relation(fields: [couponId], references: [id])
+
+  @@map("order")
+}
+
+model OrderItem {
+  id      String @id @default(uuid())
+  orderId String
+  bookId  String
+  qty     Int
+  price   Float
+  order   Order  @relation(fields: [orderId], references: [id])
+  book    Book   @relation(fields: [bookId], references: [id])
+
+  @@map("order_item")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Natification {
+  id        String   @id @default(uuid())
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("natification")
+}
+
+model Wishlist {
+  id     String @id @default(uuid())
+  userId String
+  bookId String
+
+  user User @relation(fields: [userId], references: [id])
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@map("wishlist")
+}
+
+model Coupon {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  discount  Float
+  validFrom DateTime
+  validTo   DateTime
+  isActive  Boolean  @default(true)
+
+  orders Order[]
+
+  @@map("coupon")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  userId    String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@map("auditLog")
 }
