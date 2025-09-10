@@ -16,11 +16,11 @@ import { AuthGuard } from '@nestjs/passport';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Get()
+  @Post()
   @UseGuards(AuthGuard('google'))
   googleAuthRedirect() {}
 
-  @Get('callback-google')
+  @Post('callback-google')
   @UseGuards(AuthGuard('google'))
   async OAuthGoogleCallback(@Req() req: Request) {
     const user = req['user'];
